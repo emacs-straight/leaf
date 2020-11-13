@@ -2761,7 +2761,47 @@ Example:
               :init
               (leaf package-baz)))))
        (mapcar 'car (cdr (assoc "Leaf" (funcall imenu-create-index-function)))))
-     '("package-foo" "package-bar" "package-baz"))))
+     '("package-foo" "package-bar" "package-baz"))
+
+    ((with-temp-buffer
+       (require 'imenu)
+       (emacs-lisp-mode)
+       (insert
+        "\
+(leaf scala-mode
+  :ensure t
+  :after t
+  :init
+  (defun lsp-format-before-save ()
+    (add-hook 'before-save-hook 'lsp-format-buffer nil t))
+  :hook (scala-mode-hook . lsp-format-before-save)
+  :config (leaf lsp-metals :ensure t :require t)
+  (leaf *scala-flycheck-integration))")
+       (mapcar 'car (cdr (assoc "Leaf" (funcall imenu-create-index-function)))))
+     '("scala-mode" "lsp-metals" "*scala-flycheck-integration"))))
+
+(when (version<= "24.3" emacs-version)
+  (require 'cl-lib)
+  (cort-deftest-with-equal leaf/leaf-plist-get
+    '(((let ((target '(:a "a" :b "b" :c "c")))
+         (setf (leaf-plist-get :b target) "modify")
+         target)
+       '(:a "a" :b "modify" :c "c"))
+
+      ((let ((target '(:a "a" :b "b" :c "c")))
+         (cl-rotatef (leaf-plist-get :b target) (leaf-plist-get :c target))
+         target)
+       '(:a "a" :b "c" :c "b"))
+
+      ((let ((target '(:a "a" :b "b" :c "c")))
+         (setf (leaf-plist-get :d target) "modify")
+         target)
+       '(:d "modify" :a "a" :b "b" :c "c"))
+
+      ((let ((target '(:a "a" :b "b" :c "c")))
+         (cl-rotatef (leaf-plist-get :b target) (leaf-plist-get :d target))
+         target)
+       '(:d "b" :a "a" :b nil :c "c")))))
 
 ;; (provide 'leaf-tests)
 
