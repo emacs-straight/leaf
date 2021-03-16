@@ -152,7 +152,10 @@ Example:
 
 ;;;; test definition
 
-(setq leaf-expand-minimally t)
+(setq leaf-expand-leaf-protect nil)
+(setq leaf-expand-leaf-defun nil)
+(setq leaf-expand-leaf-defvar nil)
+(setq leaf-expand-leaf-path nil)
 
 (cort-deftest-with-macroexpand leaf/none
   '(((leaf leaf)
@@ -851,11 +854,11 @@ Example:
        (foo-package-to-function . #'ignore)
        (foo-package-to-lambda   . (lambda (elm) (message elm))))
      (prog1 'foo-package
-       (customize-set-variable 'foo-package-to-enable t "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-disable nil "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-symbol 'symbol "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-lambda (lambda (elm) (message elm)) "Customized with leaf in foo-package block")))
+       (customize-set-variable 'foo-package-to-enable t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-disable nil "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-symbol 'symbol "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-lambda (lambda (elm) (message elm)) "Customized with leaf in `foo-package' block")))
 
     ;; multi cons-cell in list will be accepted
     ((leaf foo-package
@@ -865,23 +868,23 @@ Example:
                 (foo-package-to-function . #'ignore)
                 (foo-package-to-lambda   . (lambda (elm) (message elm)))))
      (prog1 'foo-package
-       (customize-set-variable 'foo-package-to-enable t "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-disable nil "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-symbol 'symbol "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-lambda (lambda (elm) (message elm)) "Customized with leaf in foo-package block")))
+       (customize-set-variable 'foo-package-to-enable t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-disable nil "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-symbol 'symbol "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-lambda (lambda (elm) (message elm)) "Customized with leaf in `foo-package' block")))
 
     ;; distribution feature is supported
     ((leaf foo-package
        :custom (((to-enable1 to-enable2 to-enable3) . t)
                 ((to-disable1 to-disable2 to-disable3) . nil)))
      (prog1 'foo-package
-       (customize-set-variable 'to-enable1 t "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-enable2 t "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-enable3 t "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-disable1 nil "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-disable2 nil "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-disable3 nil "Customized with leaf in foo-package block")))
+       (customize-set-variable 'to-enable1 t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-enable2 t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-enable3 t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-disable1 nil "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-disable2 nil "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-disable3 nil "Customized with leaf in `foo-package' block")))
 
     ;; and mix specification is accepted
     ((leaf foo-package
@@ -891,15 +894,15 @@ Example:
        (((to-enable1 to-enable2 to-enable3) . t)
         ((to-disable1 to-disable2 to-disable3) . nil)))
      (prog1 'foo-package
-       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-symbol1 'baz "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-symbol2 'baz "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-enable1 t "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-enable2 t "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-enable3 t "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-disable1 nil "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-disable2 nil "Customized with leaf in foo-package block")
-       (customize-set-variable 'to-disable3 nil "Customized with leaf in foo-package block")))))
+       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-symbol1 'baz "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-symbol2 'baz "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-enable1 t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-enable2 t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-enable3 t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-disable1 nil "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-disable2 nil "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'to-disable3 nil "Customized with leaf in `foo-package' block")))))
 
 (cort-deftest-with-macroexpand leaf/custom*
   '(
@@ -926,11 +929,11 @@ Example:
                  (foo-package-to-function #'ignore)
                  (foo-package-to-lambda   (lambda (elm) (message elm)))))
      (prog1 'foo-package
-       (customize-set-variable 'foo-package-to-enable t "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-disable nil "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-symbol 'symbol "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in foo-package block")
-       (customize-set-variable 'foo-package-to-lambda (lambda (elm) (message elm)) "Customized with leaf in foo-package block")))
+       (customize-set-variable 'foo-package-to-enable t "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-disable nil "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-symbol 'symbol "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-function #'ignore "Customized with leaf in `foo-package' block")
+       (customize-set-variable 'foo-package-to-lambda (lambda (elm) (message elm)) "Customized with leaf in `foo-package' block")))
 
     ;; distribution feature is supported
     ;; ((leaf foo-package
@@ -971,7 +974,7 @@ Example:
        (eruby-standard-face . '((t (:slant italic)))))
      (prog1 'eruby-mode
        (custom-set-faces
-        '(eruby-standard-face ((t (:slant italic))) nil "Customized with leaf in eruby-mode block"))))
+        '(eruby-standard-face ((t (:slant italic))) nil "Customized with leaf in `eruby-mode' block"))))
 
     ;; distribution feature is supported
     ((leaf eruby-mode
@@ -979,8 +982,8 @@ Example:
        ((default eruby-standard-face) . '((t (:slant italic)))))
      (prog1 'eruby-mode
        (custom-set-faces
-        '(default ((t (:slant italic))) nil "Customized with leaf in eruby-mode block")
-        '(eruby-standard-face ((t (:slant italic))) nil "Customized with leaf in eruby-mode block"))))))
+        '(default ((t (:slant italic))) nil "Customized with leaf in `eruby-mode' block")
+        '(eruby-standard-face ((t (:slant italic))) nil "Customized with leaf in `eruby-mode' block"))))))
 
 (cort-deftest-with-macroexpand leaf/pl-custom
   '(
@@ -989,7 +992,7 @@ Example:
        :pl-custom
        (sql-connection-alist . some-plstore))
      (prog1 'sql
-       (customize-set-variable 'sql-connection-alist (leaf-handler-auth sql sql-connection-alist some-plstore) "Customized in leaf `sql' from plstore `some-plstore'")))
+       (customize-set-variable 'sql-connection-alist (leaf-handler-auth sql sql-connection-alist some-plstore) "Customized with leaf in `sql' block using `some-plstore' plstore")))
 
     ;; Emulate customizing `erc-password' and `erc-nickserv-passwords'
     ;; with values taken from `some-plstore', and `erc-user-full-name'
@@ -999,17 +1002,17 @@ Example:
        ((erc-password erc-nickserv-passwords) . some-plstore)
        ((erc-user-full-name erc-nick) . another-plstore))
      (prog1 'erc
-       (customize-set-variable 'erc-password           (leaf-handler-auth erc erc-password some-plstore) "Customized in leaf `erc' from plstore `some-plstore'")
-       (customize-set-variable 'erc-nickserv-passwords (leaf-handler-auth erc erc-nickserv-passwords some-plstore) "Customized in leaf `erc' from plstore `some-plstore'")
-       (customize-set-variable 'erc-user-full-name     (leaf-handler-auth erc erc-user-full-name another-plstore) "Customized in leaf `erc' from plstore `another-plstore'")
-       (customize-set-variable 'erc-nick               (leaf-handler-auth erc erc-nick another-plstore) "Customized in leaf `erc' from plstore `another-plstore'")))
+       (customize-set-variable 'erc-password           (leaf-handler-auth erc erc-password some-plstore) "Customized with leaf in `erc' block using `some-plstore' plstore")
+       (customize-set-variable 'erc-nickserv-passwords (leaf-handler-auth erc erc-nickserv-passwords some-plstore) "Customized with leaf in `erc' block using `some-plstore' plstore")
+       (customize-set-variable 'erc-user-full-name     (leaf-handler-auth erc erc-user-full-name another-plstore) "Customized with leaf in `erc' block using `another-plstore' plstore")
+       (customize-set-variable 'erc-nick               (leaf-handler-auth erc erc-nick another-plstore) "Customized with leaf in `erc' block using `another-plstore' plstore")))
 
     ;; you can use symbol to configure with `leaf-default-plstore'.
     ((leaf erc
        :pl-custom erc-nick erc-password)
      (prog1 'erc
-       (customize-set-variable 'erc-nick     (leaf-handler-auth erc erc-nick leaf-default-plstore) "Customized in leaf `erc' from plstore `leaf-default-plstore'")
-       (customize-set-variable 'erc-password (leaf-handler-auth erc erc-password leaf-default-plstore) "Customized in leaf `erc' from plstore `leaf-default-plstore'")))))
+       (customize-set-variable 'erc-nick     (leaf-handler-auth erc erc-nick leaf-default-plstore) "Customized with leaf in `erc' block using `leaf-default-plstore' plstore")
+       (customize-set-variable 'erc-password (leaf-handler-auth erc erc-password leaf-default-plstore) "Customized with leaf in `erc' block using `leaf-default-plstore' plstore")))))
 
 (cort-deftest-with-macroexpand leaf/bind
   '(
@@ -2036,7 +2039,7 @@ Example:
      (prog1 'sql
        (customize-set-variable 'sql-connection-alist
                                (leaf-handler-auth sql sql-connection-alist some-plstore)
-                               "Customized in leaf `sql' from plstore `some-plstore'")))
+                               "Customized with leaf in `sql' block using `some-plstore' plstore")))
 
     ;; Emulate customizing `erc-password' and `erc-nickserv-passwords'
     ;; with values taken from `some-plstore', and `erc-user-full-name'
@@ -2046,17 +2049,17 @@ Example:
        ((erc-password erc-nickserv-passwords) . some-plstore)
        ((erc-user-full-name erc-nick) . another-plstore))
      (prog1 'erc
-       (customize-set-variable 'erc-password           (leaf-handler-auth erc erc-password some-plstore) "Customized in leaf `erc' from plstore `some-plstore'")
-       (customize-set-variable 'erc-nickserv-passwords (leaf-handler-auth erc erc-nickserv-passwords some-plstore) "Customized in leaf `erc' from plstore `some-plstore'")
-       (customize-set-variable 'erc-user-full-name     (leaf-handler-auth erc erc-user-full-name another-plstore) "Customized in leaf `erc' from plstore `another-plstore'")
-       (customize-set-variable 'erc-nick               (leaf-handler-auth erc erc-nick another-plstore) "Customized in leaf `erc' from plstore `another-plstore'")))
+       (customize-set-variable 'erc-password           (leaf-handler-auth erc erc-password some-plstore) "Customized with leaf in `erc' block using `some-plstore' plstore")
+       (customize-set-variable 'erc-nickserv-passwords (leaf-handler-auth erc erc-nickserv-passwords some-plstore) "Customized with leaf in `erc' block using `some-plstore' plstore")
+       (customize-set-variable 'erc-user-full-name     (leaf-handler-auth erc erc-user-full-name another-plstore) "Customized with leaf in `erc' block using `another-plstore' plstore")
+       (customize-set-variable 'erc-nick               (leaf-handler-auth erc erc-nick another-plstore) "Customized with leaf in `erc' block using `another-plstore' plstore")))
 
     ;; you can use symbol to configure with `leaf-default-plstore'.
     ((leaf erc
        :auth-custom erc-nick erc-password)
      (prog1 'erc
-       (customize-set-variable 'erc-nick     (leaf-handler-auth erc erc-nick leaf-default-plstore) "Customized in leaf `erc' from plstore `leaf-default-plstore'")
-       (customize-set-variable 'erc-password (leaf-handler-auth erc erc-password leaf-default-plstore) "Customized in leaf `erc' from plstore `leaf-default-plstore'")))))
+       (customize-set-variable 'erc-nick     (leaf-handler-auth erc erc-nick leaf-default-plstore) "Customized with leaf in `erc' block using `leaf-default-plstore' plstore")
+       (customize-set-variable 'erc-password (leaf-handler-auth erc erc-password leaf-default-plstore) "Customized with leaf in `erc' block using `leaf-default-plstore' plstore")))))
 
 (cort-deftest-with-macroexpand leaf/auth-setq
   '(
@@ -2102,8 +2105,7 @@ Example:
 ;;;; System keywords
 
 (cort-deftest-with-macroexpand-let leaf/leaf-expand-minimally
-    ((leaf-expand-leaf-protect t)
-     (leaf-expand-minimally    t))
+    ((leaf-expand-minimally t))
   '(((leaf leaf
        :config (leaf-init))
      (prog1 'leaf
@@ -2147,7 +2149,7 @@ Example:
        (leaf-init)))))
 
 (cort-deftest-with-macroexpand-let leaf/leaf-protect
-    ((leaf-expand-minimally nil))
+    ((leaf-expand-leaf-protect t))
   '(((leaf leaf
        :config (leaf-init))
      (prog1 'leaf
@@ -2178,6 +2180,33 @@ Example:
         (display-warning 'leaf
                          (format "Error in `leaf' block.  Error msg: %s"
                                  (error-message-string err))))))))
+
+(cort-deftest-with-macroexpand-let leaf/leaf-path
+    ((leaf-expand-leaf-path t))
+  '(((leaf leaf
+       :config (leaf-init))
+     (prog1 'leaf
+       (leaf-handler-leaf-path leaf)
+       (leaf-init)))
+
+    ((leaf leaf
+       :leaf-path nil
+       :config (leaf-init))
+     (prog1 'leaf
+       (leaf-init)))
+
+    ((leaf leaf
+       :leaf-path t nil
+       :config (leaf-init))
+     (prog1 'leaf
+       (leaf-handler-leaf-path leaf)
+       (leaf-init)))
+
+    ((leaf-handler-leaf-path leaf)
+     (let ((file (or load-file-name buffer-file-name byte-compile-current-file)))
+       (unless (boundp 'leaf--paths) (defvar leaf--paths nil))
+       (when file
+         (add-to-list 'leaf--paths (cons 'leaf file)))))))
 
 (cort-deftest-with-macroexpand leaf/leaf-defun
   '(((leaf annotate
@@ -2234,44 +2263,44 @@ Example:
                 (package-install 'macrostep))
             (error
              (display-warning 'leaf
-                              (format "In `macrostep' block, failed to :package of macrostep.  Error msg: %s"
+                              (format "In `macrostep' block, failed to :package of `macrostep'.  Error msg: %s"
                                       (error-message-string err)))))))))))
 
 (when (version< "24.0" emacs-version)
   (cort-deftest-with-macroexpand leaf/leaf-key
     '(((leaf-key "C-M-i" 'flyspell-correct-wrapper)
        (let* ((old (lookup-key global-map (kbd "C-M-i")))
-              (value `(global-map "C-M-i" flyspell-correct-wrapper ,(and old (not (numberp old)) old))))
+              (value `(global-map "C-M-i" flyspell-correct-wrapper ,(and old (not (numberp old)) old) nil)))
          (push value leaf-key-bindlist)
          (define-key global-map (kbd "C-M-i") 'flyspell-correct-wrapper)))
 
       ((leaf-key [remap backward-sentence] 'sh-beginning-of-command)
        (let* ((old (lookup-key global-map [remap backward-sentence]))
-              (value `(global-map "<remap> <backward-sentence>" sh-beginning-of-command ,(and old (not (numberp old)) old))))
+              (value `(global-map "<remap> <backward-sentence>" sh-beginning-of-command ,(and old (not (numberp old)) old) nil)))
          (push value leaf-key-bindlist)
          (define-key global-map [remap backward-sentence] 'sh-beginning-of-command)))
 
       ((leaf-key "C-M-i" 'flyspell-correct-wrapper 'c-mode-map)
        (let* ((old (lookup-key c-mode-map (kbd "C-M-i")))
-              (value `(c-mode-map "C-M-i" flyspell-correct-wrapper ,(and old (not (numberp old)) old))))
+              (value `(c-mode-map "C-M-i" flyspell-correct-wrapper ,(and old (not (numberp old)) old) nil)))
          (push value leaf-key-bindlist)
          (define-key c-mode-map (kbd "C-M-i") 'flyspell-correct-wrapper)))
 
       ((leaf-key [remap backward-sentence] 'sh-beginning-of-command 'shell-mode-map)
        (let* ((old (lookup-key shell-mode-map [remap backward-sentence]))
-              (value `(shell-mode-map "<remap> <backward-sentence>" sh-beginning-of-command ,(and old (not (numberp old)) old))))
+              (value `(shell-mode-map "<remap> <backward-sentence>" sh-beginning-of-command ,(and old (not (numberp old)) old) nil)))
          (push value leaf-key-bindlist)
          (define-key shell-mode-map [remap backward-sentence] 'sh-beginning-of-command)))
 
       ((leaf-key (vector 'key-chord ?i ?j) 'undo nil)
        (let* ((old (lookup-key global-map (vector 'key-chord 105 106)))
-              (value `(global-map "<key-chord> i j" undo ,(and old (not (numberp old)) old))))
+              (value `(global-map "<key-chord> i j" undo ,(and old (not (numberp old)) old) nil)))
          (push value leaf-key-bindlist)
          (define-key global-map (vector 'key-chord 105 106) 'undo)))
 
       ((leaf-key [(control ?x) (control ?f)] 'undo)
        (let* ((old (lookup-key global-map [(control 120) (control 102)]))
-              (value `(global-map "C-x C-f" undo ,(and old (not (numberp old)) old))))
+              (value `(global-map "C-x C-f" undo ,(and old (not (numberp old)) old) nil)))
          (push value leaf-key-bindlist)
          (define-key global-map [(control 120) (control 102)] 'undo))))))
 

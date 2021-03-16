@@ -5,7 +5,7 @@
 ;; Author: Naoya Yamashita <conao3@gmail.com>
 ;; Maintainer: Naoya Yamashita <conao3@gmail.com>
 ;; Keywords: lisp settings
-;; Version: 4.3.2
+;; Version: 4.4.0
 ;; URL: https://github.com/conao3/leaf.el
 ;; Package-Requires: ((emacs "24.1"))
 
@@ -54,6 +54,7 @@
 Same as `list' but this macro does not evaluate any arguments."
   `(quote ,args))
 
+(defvar leaf--paths nil)
 (defvar leaf--raw)
 (defvar leaf--name)
 (defvar leaf--key)
@@ -66,6 +67,7 @@ Same as `list' but this macro does not evaluate any arguments."
 (defvar leaf-keywords
   (leaf-list
    :disabled          (unless (eval (car leaf--value)) `(,@leaf--body))
+   :leaf-path         (if (and leaf--body (eval (car leaf--value))) `((leaf-handler-leaf-path ,leaf--name) ,@leaf--body) `(,@leaf--body))
    :leaf-protect      (if (and leaf--body (eval (car leaf--value))) `((leaf-handler-leaf-protect ,leaf--name ,@leaf--body)) `(,@leaf--body))
    :load-path         `(,@(mapcar (lambda (elm) `(add-to-list 'load-path ,elm)) leaf--value) ,@leaf--body)
    :load-path*        `(,@(mapcar (lambda (elm) `(add-to-list 'load-path (locate-user-emacs-file ,elm))) leaf--value) ,@leaf--body)
@@ -134,11 +136,11 @@ Same as `list' but this macro does not evaluate any arguments."
    :pl-pre-setq       `(,@(mapcar (lambda (elm) `(setq ,(car elm) (leaf-handler-auth ,leaf--name ,(car elm) ,(cdr elm)))) leaf--value) ,@leaf--body)
    :auth-pre-setq     `(,@(mapcar (lambda (elm) `(setq ,(car elm) (leaf-handler-auth ,leaf--name ,(car elm) ,(cdr elm)))) leaf--value) ,@leaf--body)
 
-   :custom            `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) ,(cdr elm) ,(format "Customized with leaf in %s block" leaf--name))) leaf--value) ,@leaf--body)
-   :custom*           `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) ,(cdr elm) ,(format "Customized with leaf in %s block" leaf--name))) leaf--value) ,@leaf--body)
-   :pl-custom         `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) (leaf-handler-auth ,leaf--name ,(car elm) ,(cdr elm)) ,(format "Customized in leaf `%s' from plstore `%s'" leaf--name (symbol-name (cdr elm))))) leaf--value) ,@leaf--body)
-   :auth-custom       `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) (leaf-handler-auth ,leaf--name ,(car elm) ,(cdr elm)) ,(format "Customized in leaf `%s' from plstore `%s'" leaf--name (symbol-name (cdr elm))))) leaf--value) ,@leaf--body)
-   :custom-face       `((custom-set-faces     ,@(mapcar (lambda (elm) `'(,(car elm) ,(car (cddr elm)) nil ,(format "Customized with leaf in %s block" leaf--name))) leaf--value)) ,@leaf--body)
+   :custom            `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) ,(cdr elm) ,(leaf--create-custom-comment :custom))) leaf--value) ,@leaf--body)
+   :custom*           `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) ,(cdr elm) ,(leaf--create-custom-comment :custom*))) leaf--value) ,@leaf--body)
+   :pl-custom         `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) (leaf-handler-auth ,leaf--name ,(car elm) ,(cdr elm)) ,(leaf--create-custom-comment :pl-custom (cdr elm)))) leaf--value) ,@leaf--body)
+   :auth-custom       `(,@(mapcar (lambda (elm) `(customize-set-variable ',(car elm) (leaf-handler-auth ,leaf--name ,(car elm) ,(cdr elm)) ,(leaf--create-custom-comment :auth-custom (cdr elm)))) leaf--value) ,@leaf--body)
+   :custom-face       `((custom-set-faces ,@(mapcar (lambda (elm) `'(,(car elm) ,(car (cddr elm)) nil ,(leaf--create-custom-comment :custom-face))) leaf--value)) ,@leaf--body)
    :init              `(,@leaf--value ,@leaf--body)
 
    :require           `(,@(mapcar (lambda (elm) `(require ',elm)) leaf--value) ,@leaf--body)
@@ -354,7 +356,7 @@ Sort by `leaf-sort-leaf--values-plist' in this order.")
 
 (defcustom leaf-system-defaults (leaf-list
                                  :leaf-autoload t :leaf-defer t :leaf-protect t
-                                 :leaf-defun t :leaf-defvar t)
+                                 :leaf-defun t :leaf-defvar t :leaf-path t)
   "The value for all `leaf' blocks for leaf system."
   :type 'sexp
   :group 'leaf)
@@ -380,7 +382,7 @@ If non-nil, disabled keywords of `leaf-expand-minimally-suppress-keywords'."
   :type 'boolean
   :group 'leaf)
 
-(defcustom leaf-expand-minimally-suppress-keywords '(:leaf-protect :leaf-defun :leaf-defvar)
+(defcustom leaf-expand-minimally-suppress-keywords '(:leaf-protect :leaf-defun :leaf-defvar :leaf-path)
   "Suppress keywords when `leaf-expand-minimally' is non-nil."
   :type 'sexp
   :group 'leaf)
@@ -407,6 +409,13 @@ This variable must be result of `plstore-open'."
   :type 'sexp
   :group 'leaf)
 
+(defcustom leaf-find-regexp ".*([[:space:]]*leaf[[:space:]]+\\(%s\\)"
+  "The regexp used by `leaf-find' to search for a leaf block.
+Note it must contain a `%s' at the place where `format'
+should insert the leaf name."
+  :type 'regexp
+  :group 'leaf)
+
 (defcustom leaf-enable-imenu-support t
   "If non-nil, enable `imenu' integrations.
 Ref: `lisp-imenu-generic-expression'."
@@ -429,6 +438,19 @@ Ref: `lisp-imenu-generic-expression'."
                `(setq lisp-imenu-generic-expression
                       (delete '("Leaf" ,regexp 1)
                               lisp-imenu-generic-expression))))))
+  :group 'leaf)
+
+(defcustom leaf-find-function-support t
+  "If non-nil, enable `find-func' integrations.
+Ref: `find-function-regexp-alist'."
+  :type 'boolean
+  :set (lambda (sym value)
+         (set sym value)
+         (eval-after-load 'find-func
+           (if value
+               `(add-to-list 'find-function-regexp-alist '(leaf . leaf-find-regexp))
+             `(setq find-function-regexp-alist
+                    (delete '(leaf . leaf-find-regexp) find-function-regexp-alist)))))
   :group 'leaf)
 
 
@@ -587,6 +609,22 @@ see `alist-get'."
   "Raise error with type leaf.  MESSAGE and ARGS is same form as `lwarn'."
   (apply #'lwarn `(leaf :error ,message ,@args)))
 
+(defun leaf--create-custom-comment (type &rest args)
+  "Create message for TYPE using ARGS."
+  (concat
+   (format "Customized with leaf in `%s' block" leaf--name)
+   (when (memq type '(:pl-custom :auth-custom))
+     (let* ((store (pop args)))
+       (format " using `%s' plstore" store)))
+   (when load-file-name
+     (format " at `%s'" load-file-name))))
+
+(defun leaf-this-file ()
+  "Return path to this file."
+  (or load-file-name
+      (and (boundp 'byte-compile-current-file) byte-compile-current-file)
+      buffer-file-name))
+
 
 ;;;; General functions for leaf
 
@@ -719,6 +757,27 @@ see `alist-get'."
       (display-buffer buf))))
 
 
+;;;; find-function
+
+(defun leaf-find (name)
+  "Find the leaf block of NAME."
+  (interactive
+   (let ((candidates (delete-dups (mapcar #'car leaf--paths))))
+     (if (not candidates)
+         (error "Leaf has no definition informations")
+       (list (completing-read "Find leaf: " (delete-dups (mapcar #'car leaf--paths)))))))
+  (require 'find-func)
+  (let* ((name (intern name))
+         (paths (mapcan (lambda (elm) (when (eq name (car elm)) (list (cdr elm)))) leaf--paths))
+         (path (if (= (length paths) 1) (car paths) (completing-read "Select one: " paths)))
+         (location (find-function-search-for-symbol name 'leaf path)))
+    (when location
+      (prog1 (pop-to-buffer (car location))
+        (when (cdr location)
+          (goto-char (cdr location)))
+        (run-hooks 'find-function-after-hook)))))
+
+
 ;;;; Key management
 
 (defvar leaf-key-override-global-map (make-keymap)
@@ -735,7 +794,7 @@ see `alist-get'."
 
 (defvar leaf-key-bindlist nil
   "List of bindings performed by `leaf-key'.
-Elements have the form (MAP KEY CMD ORIGINAL-CMD)")
+Elements have the form (MAP KEY CMD ORIGINAL-CMD PATH)")
 
 (defmacro leaf-key (key command &optional keymap)
   "Bind KEY to COMMAND in KEYMAP (`global-map' if not passed).
@@ -764,10 +823,11 @@ For example:
          (keymap*  (eval keymap))
          (mmap     (or keymap* 'global-map))
          (vecp     (vectorp key*))
+         (path     (leaf-this-file))
          (_mvec    (if (vectorp key*) key* (read-kbd-macro key*)))
          (mstr     (if (stringp key*) key* (key-description key*))))
     `(let* ((old (lookup-key ,mmap ,(if vecp key `(kbd ,key))))
-            (value ,(list '\` `(,mmap ,mstr ,command* ,',(and old (not (numberp old)) old)))))
+            (value ,(list '\` `(,mmap ,mstr ,command* ,',(and old (not (numberp old)) old) ,path))))
        (push value leaf-key-bindlist)
        (define-key ,mmap ,(if vecp key `(kbd ,key)) ',command*))))
 
@@ -856,7 +916,8 @@ BIND must not contain :{{map}}."
   (setq tabulated-list-format [("Map"     20 t)
                                ("Key"     20 t)
                                ("Command" 40 t)
-                               ("Before Command" 0 t)])
+                               ("Before Command" 40 t)
+                               ("Path" 0 t)])
   (setq tabulated-list-entries
         (let ((id 0)
               (formatfn (lambda (elm)
@@ -869,7 +930,8 @@ BIND must not contain :{{map}}."
             (push `(,id [,(funcall formatfn (nth 0 elm))
                          ,(funcall formatfn (nth 1 elm))
                          ,(funcall formatfn (nth 2 elm))
-                         ,(funcall formatfn (nth 3 elm))])
+                         ,(funcall formatfn (nth 3 elm))
+                         ,(funcall formatfn (nth 4 elm))])
                   res))
           (nreverse res)))
   (setq tabulated-list-sort-key '("Map" . nil))
@@ -905,8 +967,23 @@ FN also accept list of FN."
   `(condition-case err
        (progn ,@body)
      (error
-      (display-warning 'leaf (format ,(format "Error in `%s' block.  Error msg: %%s" name)
-                                     (error-message-string err))))))
+      (display-warning 'leaf (format
+                              ,(concat
+                                (format "Error in `%s' block" name)
+                                (when load-file-name
+                                  (format " at `%s'" load-file-name))
+                                "."
+                                "  Error msg: %s")
+                              (error-message-string err))))))
+
+(defmacro leaf-handler-leaf-path (name)
+  "Meta handler for :leaf-path for NAME."
+  `(let ((file (or load-file-name
+                   buffer-file-name
+                   byte-compile-current-file)))
+     (unless (boundp 'leaf--paths) (defvar leaf--paths nil))
+     (when file
+      (add-to-list 'leaf--paths (cons ',name file)))))
 
 (defmacro leaf-handler-package (name pkg _pin)
   "Handler ensure PKG via PIN in NAME leaf block."
@@ -923,8 +1000,12 @@ FN also accept list of FN."
           (error
            (display-warning 'leaf
                             (format
-                             ,(format "In `%s' block, failed to :package of %s.  Error msg: %%s"
-                                      name pkg)
+                             ,(concat
+                               (format "In `%s' block" name)
+                               (when load-file-name
+                                 (format " at `%s'" load-file-name))
+                               (format ", failed to :package of `%s'." pkg)
+                               "  Error msg: %s")
                              (error-message-string err)))))))))
 
 (defmacro leaf-handler-auth (name sym store)
