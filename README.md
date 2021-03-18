@@ -14,9 +14,11 @@
   - [:commands keyword](#commands-keyword)
   - [:after keyword](#after-keyword)
   - [:bind, :bind* keywords](#bind-bind-keywords)
+  - [:bind-keymap, :bind-keymap* keywords](#bind-keymap-bind-keymap-keywords)
 - [Configure variables keywords](#configure-variables-keywords)
   - [:custom, :custom*, :custom-face keywords](#custom-custom-custom-face-keywords)
   - [:pre-setq, :setq, :setq-default keywords](#pre-setq-setq-setq-default-keywords)
+  - [:setf, :push, :pre-setf, :pre-push keywords](#setf-push-pre-setf-pre-push-keywords)
 - [Configure list keywords](#configure-list-keywords)
   - [:mode, :interpreter keywords](#mode-interpreter-keywords)
   - [:magic, :magic-fallback keywords](#magic-magic-fallback-keywords)
@@ -643,7 +645,7 @@ When defined globally, key bindings and their corresponding functions are specif
 
 To set it to a specific map, **place the map name as a keyword or symbol** at the top of the list.
 
-If you omit `:package`, use leaf&#x2013;name as `:package` to lazy load.
+If you omit `:package`, use leaf--name as `:package` to lazy load.
 
 ```emacs-lisp
 (cort-deftest-with-macroexpand leaf/bind
@@ -841,6 +843,122 @@ If you omit `:package`, use leaf&#x2013;name as `:package` to lazy load.
        (leaf-keys* (("M-s O" . moccur)
                     ("M-o" . isearch-moccur)
                     ("M-O" . isearch-moccur-all)))))))
+```
+
+
+
+## :bind-keymap, :bind-keymap\* keywords
+
+`:bind-keymap` and `:bind-keymap*` provide frontend for keybind manager for binding keymap.
+
+Basic usage is same as `:bind` and `:bind*`
+
+```emacs-lisp
+(cort-deftest-with-macroexpand leaf/bind-keymap
+  '(
+    ;; cons-cell will be accepted
+    ((leaf projectile
+       :ensure t
+       :bind-keymap ("C-c p" . projectile-command-map))
+     (prog1 'projectile
+       (leaf-handler-package projectile projectile nil)
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map))
+                              nil 'projectile)))
+
+    ;; multi cons-cell will be accepted
+    ((leaf projectile
+       :bind-keymap
+       ("C-c p" . projectile-command-map)
+       ("C-%" . ctl-x-5-map))
+     (prog1 'projectile
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map)
+                               ("C-%" . ctl-x-5-map))
+                              nil 'projectile)))
+
+    ;; multi cons-cell in list will be accepted
+    ((leaf projectile
+       :bind-keymap (("C-c p" . projectile-command-map)
+                     ("C-%" . ctl-x-5-map)))
+     (prog1 'projectile
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map)
+                               ("C-%" . ctl-x-5-map))
+                              nil 'projectile)))
+
+    ;; nested cons-cell list will be accepted
+    ((leaf projectile
+       :bind-keymap (("C-c p" . projectile-command-map)
+                     (("C-^" . ctl-x-4-map)
+                      ("C-%" . ctl-x-5-map))))
+     (prog1 'projectile
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map)
+                               ("C-^" . ctl-x-4-map)
+                               ("C-%" . ctl-x-5-map))
+                              nil 'projectile)))
+
+    ;; use keyword at first element to bind specific map
+    ((leaf projectile
+       :bind-keymap (("C-c p" . projectile-command-map)
+                     (:projectile-mode-map
+                      ("C-^" . ctl-x-4-map)
+                      ("C-%" . ctl-x-5-map))))
+     (prog1 'projectile
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map)
+                               (projectile-mode-map
+                                :package projectile
+			        ("C-^" . ctl-x-4-map)
+			        ("C-%" . ctl-x-5-map)))
+                              nil 'projectile)))
+
+    ;; specific map at top-level will be accepted
+    ((leaf projectile
+       :bind-keymap
+       ("C-c p" . projectile-command-map)
+       (:projectile-mode-map
+        ("C-^" . ctl-x-4-map)
+        ("C-%" . ctl-x-5-map)))
+     (prog1 'projectile
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map)
+                               (projectile-mode-map :package projectile
+			                            ("C-^" . ctl-x-4-map)
+			                            ("C-%" . ctl-x-5-map)))
+                              nil 'projectile)))
+
+    ;; use :package to deffering :iserch-mode-map declared
+    ((leaf projectile
+       :bind-keymap (("C-c p" . projectile-command-map)
+                     (:isearch-mode-map
+                      :package isearch
+                      ("C-^" . ctl-x-4-map)
+                      ("C-%" . ctl-x-5-map))))
+     (prog1 'projectile
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map)
+                               (isearch-mode-map :package isearch
+		                                 ("C-^" . ctl-x-4-map)
+		                                 ("C-%" . ctl-x-5-map)))
+                              nil 'projectile)))
+
+    ;; you can use symbol instead of keyword to specify map
+    ((leaf projectile
+       :bind-keymap (("C-c p" . projectile-command-map)
+                     (isearch-mode-map
+                      :package isearch
+                      ("C-^" . ctl-x-4-map)
+                      ("C-%" . ctl-x-5-map))))
+     (prog1 'projectile
+       (leaf-keys-bind-keymap (("C-c p" . projectile-command-map)
+                               (isearch-mode-map :package isearch
+		                                 ("C-^" . ctl-x-4-map)
+		                                 ("C-%" . ctl-x-5-map)))
+                              nil 'projectile)))
+
+    ;; you can use vectors to remap etc
+    ((leaf projectile
+       :ensure t
+       :bind-keymap (([remap isearch-forward] . projectile-command-map)))
+     (prog1 'projectile
+       (leaf-handler-package projectile projectile nil)
+       (leaf-keys-bind-keymap (([remap isearch-forward] . projectile-command-map))
+                              nil 'projectile)))))
 ```
 
 
@@ -1048,6 +1166,49 @@ You can of course configure multiple variables and set the evaluation result of 
        (require 'alloc)
        (setq-default gc-cons-threshold 536870912)
        (setq-default garbage-collection-messages t)))))
+```
+
+
+
+## :setf, :push, :pre-setf, :pre-push keywords
+
+These keywords provide a front end to ~setf~ and ~push~.
+
+Note that, *unlike :setq*, it always requires a list of cons cell.
+
+
+```emacs-lisp
+(cort-deftest-with-macroexpand leaf/setf
+  '(
+    ;; :setf require cons-cell list ONLY.
+    ((leaf alloc
+       :setf ((gc-cons-threshold . 536870912)
+              (garbage-collection-messages . t))
+       :require t)
+     (prog1 'alloc
+       (require 'alloc)
+       (setf gc-cons-threshold 536870912)
+       (setf garbage-collection-messages t)))
+
+    ;; left value could generalized variable (alist-get, plist-get...)
+    ;; note that it is specified as the car of the cons list.
+    ((leaf emacs
+       :setf
+       (((alist-get "gnu" package-archives) . "http://elpa.gnu.org/packages/")
+        ((alist-get 'vertical-scroll-bars default-frame-alist) . nil)))
+     (prog1 'emacs
+       (setf (alist-get "gnu" package-archives) "http://elpa.gnu.org/packages/")
+       (setf (alist-get 'vertical-scroll-bars default-frame-alist) nil)))))
+
+(cort-deftest-with-macroexpand leaf/push
+  '(
+    ;; :setf require cons-cell list ONLY.
+    ((leaf emacs
+       :push ((package-archives . '("melpa" . "https://melpa.org/packages/"))
+              (auto-mode-alist . '("\\.jpe?g\\'" . image-mode))))
+     (prog1 'emacs
+       (push '("melpa" . "https://melpa.org/packages/") package-archives)
+       (push '("\\.jpe?g\\'" . image-mode) auto-mode-alist)))))
 ```
 
 
