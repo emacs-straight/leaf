@@ -396,11 +396,13 @@ Since `:ensure` is to use `package.el` by default, `:ensure` and `:package` prod
      (prog1 'macrostep
        (leaf-handler-package macrostep macrostep nil)))
 
-    ;; `leaf-handler-package' expandion example.
-    ;; If `macrostep' isn't installed, try to install.
-    ;; If fail install, update local cache and retry to install.
+    ;; `leaf-handler-package' expansion example.
+    ;; If `macrostep' is installed, set it as a selected package;
+    ;; otherwise try to install it.
+    ;; If installation fails, update local cache and retry to install.
     ((leaf-handler-package macrostep macrostep nil)
-     (unless (package-installed-p 'macrostep)
+     (if (package-installed-p 'macrostep)
+         (package--update-selected-packages '(macrostep) nil)
        (unless (assoc 'macrostep package-archive-contents)
          (package-refresh-contents))
        (condition-case err
@@ -768,7 +770,7 @@ If you omit `:package`, use leaf--name as `:package` to lazy load.
                     ("M-o" . isearch-moccur)
                     ("M-O" . isearch-moccur-all))))))
 
-    ;; use :package to deffering :iserch-mode-map declared
+    ;; use :package to deffering :isearch-mode-map declared
     ((leaf color-moccur
        :bind (("M-s O" . moccur)
               (:isearch-mode-map
@@ -923,7 +925,7 @@ Basic usage is same as `:bind` and `:bind*`
 			                            ("C-%" . ctl-x-5-map)))
                               nil 'projectile)))
 
-    ;; use :package to deffering :iserch-mode-map declared
+    ;; use :package to deffering :isearch-mode-map declared
     ((leaf projectile
        :bind-keymap (("C-c p" . projectile-command-map)
                      (:isearch-mode-map

@@ -1113,7 +1113,7 @@ Example:
                     ("M-o" . isearch-moccur)
                     ("M-O" . isearch-moccur-all))))))
 
-    ;; use :package to deffering :iserch-mode-map declared
+    ;; use :package to deffering :isearch-mode-map declared
     ((leaf color-moccur
        :bind (("M-s O" . moccur)
               (:isearch-mode-map
@@ -1161,7 +1161,13 @@ Example:
        :bind (([(control ?x) (control ?f)] . find-file)))
      (prog1 'files
        (unless (fboundp 'find-file) (autoload #'find-file "files" nil t))
-       (leaf-keys (([(control ?x) (control ?f)] . find-file)))))))
+       (leaf-keys (([(control ?x) (control ?f)] . find-file)))))
+
+    ;; you can bind the lambda.
+    ((leaf color-moccur
+       :bind ("M-s O" . (lambda () "color-moccur" (interactive) (color-moccur))))
+     (prog1 'color-moccur
+       (leaf-keys (("M-s O" . (lambda () "color-moccur" (interactive) (color-moccur)))))))))
 
 (cort-deftest-with-macroexpand leaf/bind*
   '(
@@ -1287,7 +1293,7 @@ Example:
 			                            ("C-%" . ctl-x-5-map)))
                               nil 'projectile)))
 
-    ;; use :package to deffering :iserch-mode-map declared
+    ;; use :package to deffering :isearch-mode-map declared
     ((leaf projectile
        :bind-keymap (("C-c p" . projectile-command-map)
                      (:isearch-mode-map
@@ -1606,13 +1612,13 @@ Example:
     ((leaf hook
        :hook (foo-hook . (lambda () (foo))))
      (prog1 'hook
-       (add-hook 'foo-hook #'(lambda nil (foo)))))
+       (add-hook 'foo-hook #'(lambda () (foo)))))
 
     ;; lambda sexp with many sexps
     ((leaf hook
        :hook (foo-hook . (lambda () (foo) (bar) (baz))))
      (prog1 'hook
-       (add-hook 'foo-hook #'(lambda nil (foo) (bar) (baz)))))))
+       (add-hook 'foo-hook #'(lambda () (foo) (bar) (baz)))))))
 
 (cort-deftest-with-macroexpand leaf/advice
   '(
@@ -2385,24 +2391,26 @@ Example:
      (prog1 'macrostep
        (leaf-handler-package macrostep macrostep nil)))
 
-    ;; `leaf-handler-package' expandion example.
-    ;; If `macrostep' isn't installed, try to install.
-    ;; If fail install, update local cache and retry to install.
+    ;; `leaf-handler-package' expansion example.
+    ;; If `macrostep' is installed, set it as a selected package;
+    ;; otherwise try to install it.
+    ;; If installation fails, update local cache and retry to install.
     ((leaf-handler-package macrostep macrostep nil)
-     (unless (package-installed-p 'macrostep)
-       (unless (assoc 'macrostep package-archive-contents)
-         (package-refresh-contents))
-       (condition-case _err
-           (package-install 'macrostep)
-         (error
-          (condition-case err
-              (progn
-                (package-refresh-contents)
-                (package-install 'macrostep))
-            (error
-             (display-warning 'leaf
-                              (format "In `macrostep' block, failed to :package of `macrostep'.  Error msg: %s"
-                                      (error-message-string err)))))))))))
+     (progn
+       (leaf-safe-push 'macrostep package-selected-packages 'no-dup)
+       (unless (package-installed-p 'macrostep)
+         (unless (assoc 'macrostep package-archive-contents)
+           (package-refresh-contents))
+         (condition-case _err
+             (package-install 'macrostep)
+           (error
+            (package-refresh-contents)
+            (condition-case err
+                (package-install 'macrostep)
+              (error
+               (display-warning 'leaf
+                                (format "In `macrostep' block, failed to :package of `macrostep'.  Error msg: %s"
+                                        (error-message-string err))))))))))))
 
 (when (version< "24.0" emacs-version)
   (cort-deftest-with-macroexpand leaf/leaf-key
@@ -2440,7 +2448,19 @@ Example:
        (let* ((old (lookup-key global-map [(control 120) (control 102)]))
               (value `(global-map "C-x C-f" undo ,(and old (not (numberp old)) old) nil)))
          (leaf-safe-push value leaf-key-bindlist)
-         (define-key global-map [(control 120) (control 102)] 'undo))))))
+         (define-key global-map [(control 120) (control 102)] 'undo)))
+
+      ((leaf-key "M-s O" (lambda () "color-moccur" (interactive) (color-moccur)))
+       (let* ((old (lookup-key global-map (kbd "M-s O")))
+              (value `(global-map "M-s O" *lambda-function* ,(and old (not (numberp old)) old) nil)))
+         (leaf-safe-push value leaf-key-bindlist)
+         (define-key global-map (kbd "M-s O") (lambda () "color-moccur" (interactive) (color-moccur)))))
+
+      ((leaf-key "M-s O" '(menu-item "" nil :filter (lambda (&optional _) #'other-window)))
+       (let* ((old (lookup-key global-map (kbd "M-s O")))
+              (value `(global-map "M-s O" *menu-item* ,(and old (not (numberp old)) old) nil)))
+         (leaf-safe-push value leaf-key-bindlist)
+         (define-key global-map (kbd "M-s O") '(menu-item "" nil :filter (lambda (&optional _) #'other-window))))))))
 
 (when (version< "24.0" emacs-version)
   (cort-deftest-with-macroexpand leaf/leaf-key-bind-keymap

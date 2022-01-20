@@ -414,11 +414,13 @@ Since ~:ensure~ is to use ~package.el~ by default, ~:ensure~ and
        (prog1 'macrostep
          (leaf-handler-package macrostep macrostep nil)))
 
-      ;; `leaf-handler-package' expandion example.
-      ;; If `macrostep' isn't installed, try to install.
-      ;; If fail install, update local cache and retry to install.
+      ;; `leaf-handler-package' expansion example.
+      ;; If `macrostep' is installed, set it as a selected package;
+      ;; otherwise try to install it.
+      ;; If installation fails, update local cache and retry to install.
       ((leaf-handler-package macrostep macrostep nil)
-       (unless (package-installed-p 'macrostep)
+       (if (package-installed-p 'macrostep)
+           (package--update-selected-packages '(macrostep) nil)
          (unless (assoc 'macrostep package-archive-contents)
            (package-refresh-contents))
          (condition-case err
@@ -780,7 +782,7 @@ If you omit ~:package~, use leaf--name as ~:package~ to lazy load.
                       ("M-o" . isearch-moccur)
                       ("M-O" . isearch-moccur-all))))))
 
-      ;; use :package to deffering :iserch-mode-map declared
+      ;; use :package to deffering :isearch-mode-map declared
       ((leaf color-moccur
          :bind (("M-s O" . moccur)
                 (:isearch-mode-map
@@ -838,7 +840,13 @@ If you omit ~:package~, use leaf--name as ~:package~ to lazy load.
        (prog1 'files
          (unless (fboundp 'find-file) (autoload #'find-file "files" nil t))
          (declare-function find-file "files")
-         (leaf-keys (([(control ?x) (control ?f)] . find-file)))))))
+         (leaf-keys (([(control ?x) (control ?f)] . find-file)))))
+
+      ;; you can bind the lambda.
+      ((leaf color-moccur
+         :bind ("M-s O" . (lambda () "color-moccur" (interactive) (color-moccur))))
+       (prog1 'color-moccur
+         (leaf-keys (("M-s O" . (lambda () "color-moccur" (interactive) (color-moccur)))))))))
 
   (cort-deftest-with-macroexpand leaf/bind*
     '(
@@ -984,7 +992,7 @@ Basic usage is same as ~:bind~ and ~:bind*~
                       ("M-o" . isearch-moccur)
                       ("M-O" . isearch-moccur-all))))))
 
-      ;; use :package to deffering :iserch-mode-map declared
+      ;; use :package to deffering :isearch-mode-map declared
       ((leaf color-moccur
          :bind (("M-s O" . moccur)
                 (:isearch-mode-map

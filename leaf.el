@@ -5,7 +5,7 @@
 ;; Author: Naoya Yamashita <conao3@gmail.com>
 ;; Maintainer: Naoya Yamashita <conao3@gmail.com>
 ;; Keywords: lisp settings
-;; Version: 4.5.2
+;; Version: 4.5.5
 ;; URL: https://github.com/conao3/leaf.el
 ;; Package-Requires: ((emacs "24.1"))
 
@@ -323,8 +323,24 @@ Sort by `leaf-sort-leaf--values-plist' in this order.")
   "Normalize rule.")
 
 (defvar leaf-verify
-  '(((memq leaf--key (list :package))
+  '(((memq leaf--key '(:package))
      (if (not (equal '(nil) (car leaf--value))) leaf--value nil))
+    ((memq leaf--key '(:after))
+     (delq nil
+           (mapcar
+            (lambda (elm)
+              (cond
+               ((eq elm nil)
+                (prog1 nil
+                  (leaf-error "Error occurs in leaf block: %s" leaf--name)
+                  (leaf-error "Attempt wait constant: nil;  Please check your specification")))
+               ((keywordp elm)
+                (prog1 nil
+                  (leaf-error "Error occurs in leaf block: %s" leaf--name)
+                  (leaf-error "Attempt wait constant keyword: %s;  Please check your specification" elm)))
+               (t
+                elm)))
+            leaf--value)))
     ((memq leaf--key (list
                       :hook :defun
                       :pl-setq :pl-pre-setq :pl-setq-default :pl-custom
@@ -775,12 +791,16 @@ see `alist-get'."
       (indent-region (point-min) (point-max))
       (display-buffer buf))))
 
-(defmacro leaf-safe-push (newelt place)
+(defmacro leaf-safe-push (newelt place &optional no-dup)
   "Safely add NEWELT to the list stored in the generalized variable PLACE.
 This is equivalent to `push' if PLACE is bound, otherwise, `setq'
-is used to define a new list."
+is used to define a new list.
+If NO-DUP is non-nil, do not `push' if the element already exists."
   `(if (boundp ',place)
-       (push ,newelt ,place)
+       ,(if (not no-dup)
+            `(push ,newelt ,place)
+          `(unless (memq ,newelt ,place)
+             (push ,newelt ,place)))
      (setq ,place (list ,newelt))))
 
 
@@ -812,7 +832,8 @@ is used to define a new list."
 
 (define-minor-mode leaf-key-override-global-mode
   "A minor mode so that keymap settings override other modes."
-  t "")
+  :init-value t
+  :lighter "")
 
 ;; the keymaps in `emulation-mode-map-alists' take precedence over
 ;; `minor-mode-map-alist'
@@ -830,17 +851,12 @@ KEY-NAME may be a vector, in which case it is passed straight to
 `define-key'.  Or it may be a string to be interpreted as spelled-out
 keystrokes.  See documentation of `edmacro-mode' for details.
 
-COMMAND must be an interactive function or lambda form.
+COMMAND must be an interactive function. lambda form, menu-item,
+or the form that returned one of them also be accepted.
 
 KEYMAP, if present, should be a keymap and not a quoted symbol.
 For example:
   (leaf-key \"M-h\" #'some-interactive-function my-mode-map)
-
-If PREDICATE is non-nil, it is a form evaluated to determine when a
-key should be bound. It must return non-nil in such cases.  Emacs can
-evaluate this form at any time that it does redisplay or operates on
-menu data structures, so you should write it so it can safely be
-called at any time.
 
 You can also use [remap COMMAND] as KEY.
 For example:
@@ -848,15 +864,19 @@ For example:
   (let* ((key*     (eval key))
          (command* (eval command))
          (keymap*  (eval keymap))
+         (bindto   (cond ((symbolp command*) command*)
+                         ((eq (car-safe command*) 'lambda) '*lambda-function*)
+                         ((eq (car-safe command*) 'menu-item) '*menu-item*)))
          (mmap     (or keymap* 'global-map))
          (vecp     (vectorp key*))
          (path     (leaf-this-file))
          (_mvec    (if (vectorp key*) key* (read-kbd-macro key*)))
          (mstr     (if (stringp key*) key* (key-description key*))))
     `(let* ((old (lookup-key ,mmap ,(if vecp key* `(kbd ,key*))))
-            (value ,(list '\` `(,mmap ,mstr ,command* ,',(and old (not (numberp old)) old) ,path))))
+            (value ,(list '\` `(,mmap ,mstr ,bindto ,',(and old (not (numberp old)) old) ,path))))
        (leaf-safe-push value leaf-key-bindlist)
-       (define-key ,mmap ,(if vecp key* `(kbd ,key*)) ',command*))))
+       (define-key ,mmap ,(if vecp key* `(kbd ,key*))
+                   ,(if (eq bindto '*lambda-function*) command* `',command*)))))
 
 (defmacro leaf-key* (key command)
   "Similar to `leaf-key', but overrides any mode-specific bindings.
@@ -865,15 +885,15 @@ Bind COMMAND at KEY."
 
 (defmacro leaf-keys (bind &optional dryrun-name bind-keymap bind-keymap-pkg)
   "Bind multiple BIND for KEYMAP defined in PKG.
-BIND is (KEY . COMMAND) or (KEY . nil) to unbind KEY.
+BIND is (KEY . COMMAND), (KEY . (lambda ...)). (KEY . nil) to unbind KEY.
 If BIND-KEYMAP is non-nil generate `leaf-key-bind-keymap' instead of `leaf-key'.
 If BIND-KEYMAP-PKG is passed, require it before binding.
 
 OPTIONAL:
   BIND also accept below form.
     (:{{map}} :package {{pkg}} (KEY . COMMAND) (KEY . COMMAND))
-  KEYMAP is quoted keymap name.
-  PKG is quoted package name which define KEYMAP.
+  KEYMAP is keymap name.
+  PKG is package name which define KEYMAP.
   (wrap `eval-after-load' PKG)
 
   If DRYRUN-NAME is non-nil, return list like
@@ -886,8 +906,7 @@ NOTE: BIND can also accept list of these."
                  (condition-case _err
                      (and (listp x)
                           (or (stringp (eval (car x)))
-                              (vectorp (eval (car x))))
-                          (atom (cdr x)))
+                              (vectorp (eval (car x)))))
                    (error nil))))
         recurfn forms bds fns)
     (setq recurfn
@@ -896,23 +915,12 @@ NOTE: BIND can also accept list of these."
              ((funcall pairp bind)
               (push (if bind-keymap
                         `(leaf-key-bind-keymap ,(car bind) ,(cdr bind) nil ,bind-keymap-pkg)
-                      `(leaf-key ,(car bind) #',(cdr bind)))
+                      (if (atom (cdr bind))
+                          `(leaf-key ,(car bind) #',(cdr bind))
+                        `(leaf-key ,(car bind) ,(cdr bind))))
                     forms)
               (push bind bds)
               (push (cdr bind) fns))
-             ((and (listp (car bind))
-                   (funcall pairp (car bind)))
-              (mapcar (lambda (elm)
-                        (if (funcall pairp elm)
-                            (progn
-                              (push (if bind-keymap
-                                        `(leaf-key-bind-keymap ,(car elm) ,(cdr elm) nil ,bind-keymap-pkg)
-                                      `(leaf-key ,(car elm) #',(cdr elm)))
-                                    forms)
-                              (push elm bds)
-                              (push (cdr elm) fns))
-                          (funcall recurfn elm)))
-                      bind))
              ((or (keywordp (car bind))
                   (symbolp (car bind)))
               (let* ((map (leaf-sym-from-keyword (car bind)))
@@ -924,20 +932,18 @@ NOTE: BIND can also accept list of these."
                                  (lambda (elm)
                                    (push (cdr elm) fns)
                                    (if bind-keymap
-                                       `(leaf-key-bind-keymap ,(car elm) ,(cdr elm) ',map ',pkg)
-                                     `(leaf-key ,(car elm) #',(cdr elm) ',map)))
+                                       `(leaf-key-bind-keymap ,(car elm) ,(cdr elm) ',map ,bind-keymap-pkg)
+                                     (if (atom (cdr elm))
+                                         `(leaf-key ,(car elm) #',(cdr elm) ',map)
+                                       `(leaf-key ,(car elm) ,(cdr elm) ',map))))
                                  elmbinds))))
-                (push (if pkg
-                          `(,map :package ,pkg ,@elmbinds)
-                        `(,map :package ,dryrun-name ,@elmbinds))
-                      bds)
+                (push `(,map :package ,(or `,pkg `,dryrun-name) ,@elmbinds) bds)
                 (when pkg
                   (dolist (elmpkg (if (atom pkg) `(,pkg) pkg))
                     (unless bind-keymap
                       (setq form `(eval-after-load ',elmpkg ',form)))))
                 (push form forms)))
-             (t
-              (mapcar (lambda (elm) (funcall recurfn elm)) bind)))))
+             (t (mapcar recurfn bind)))))
     (funcall recurfn bind)
     (if dryrun-name
         `'(,(nreverse bds) ,(nreverse fns))
@@ -984,12 +990,12 @@ OPTIONAL:
 NOTE: BIND can also accept list of these."
   `(leaf-keys ,bind ,dryrun-name 'bind-keymap ,pkg))
 
-(defmacro leaf-keys-bind-keymap* (bind &optional pkg)
+(defmacro leaf-keys-bind-keymap* (bind &optional dryrun-name pkg)
   "Similar to `leaf-keys-bind-keymap' but overrides any mode-specific bindings.
 BIND must not contain :{{map}}.
 If PKG passed, require PKG before binding."
   (let ((binds (if (and (atom (car bind)) (atom (cdr bind))) `(,bind) bind)))
-    `(leaf-keys (:leaf-key-override-global-map ,@binds) ,pkg)))
+    `(leaf-keys (:leaf-key-override-global-map ,@binds) ,dryrun-name 'bind-keymap ,pkg)))
 
 (define-derived-mode leaf-key-list-mode tabulated-list-mode "Leaf-key Bindings"
   "Major mode for listing bindings configured via `leaf-key'."
@@ -1074,27 +1080,29 @@ FN also accept list of FN."
       (add-to-list 'leaf--paths (cons ',name file)))))
 
 (defmacro leaf-handler-package (name pkg _pin)
-  "Handler ensure PKG via PIN in NAME leaf block."
-  `(unless (package-installed-p ',pkg)
-     (unless (assoc ',pkg package-archive-contents)
-       (package-refresh-contents))
-     (condition-case _err
-         (package-install ',pkg)
-       (error
-        (condition-case err
-            (progn
-              (package-refresh-contents)
-              (package-install ',pkg))
-          (error
-           (display-warning 'leaf
-                            (format
-                             ,(concat
-                               (format "In `%s' block" name)
-                               (when load-file-name
-                                 (format " at `%s'" load-file-name))
-                               (format ", failed to :package of `%s'." pkg)
-                               "  Error msg: %s")
-                             (error-message-string err)))))))))
+  "Handler for ensuring the installation of PKG with package.el
+via PIN in the leaf block NAME."
+  `(progn
+     (leaf-safe-push ',pkg package-selected-packages 'no-dup)
+     (unless (package-installed-p ',pkg)
+       (unless (assoc ',pkg package-archive-contents)
+         (package-refresh-contents))
+       (condition-case _err
+           (package-install ',pkg)
+         (error
+          (package-refresh-contents)
+          (condition-case err
+              (package-install ',pkg)
+            (error
+             (display-warning 'leaf
+                              (format
+                               ,(concat
+                                 (format "In `%s' block" name)
+                                 (when load-file-name
+                                   (format " at `%s'" load-file-name))
+                                 (format ", failed to :package of `%s'." pkg)
+                                 "  Error msg: %s")
+                               (error-message-string err))))))))))
 
 (defmacro leaf-handler-auth (name sym store)
   "Handler auth-* to set SYM of NAME from STORE."
