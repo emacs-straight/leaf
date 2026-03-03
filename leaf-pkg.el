@@ -1,2 +1,2 @@
-;; Generated package description from leaf.el  -*- no-byte-compile: t -*-
-(define-package "leaf" "4.5.5.0.20241018.51628" "Simplify your init.el configuration, extended use-package" '((emacs "24.1")) :commit "69c9b057cdeee560450c1d04a9a058235ecff0f7" :authors '(("Naoya Yamashita" . "conao3@gmail.com")) :maintainer '("Naoya Yamashita" . "conao3@gmail.com") :keywords '("lisp" "settings") :url "https://github.com/conao3/leaf.el")
+;; Generated package description from leaf.el  -*- no-byte-compile: t; lexical-binding:t -*-
+(define-package "leaf" "4.5.5.0.20260302.65208" "Simplify your init.el configuration, extended use-package" '((emacs "24.1")) :commit "b49e68613b8efba89c702141f49ad9b4460a7204" :authors '(("Naoya Yamashita" . "conao3@gmail.com")) :maintainer '("Naoya Yamashita" . "conao3@gmail.com") :keywords '("lisp" "settings") :url "https://github.com/conao3/leaf.el")
